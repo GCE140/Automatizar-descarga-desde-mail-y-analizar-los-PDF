@@ -10,28 +10,35 @@ dir_base = os.path.abspath(os.getcwd())
 nombre_dir_desc = "pdfs_descargados_"+ texto_fecha
 
 
+# 1- Accede al mail y busca todos los mails de xxxxxxxxxx@xxxxxxxxxx.com.ar (yyyyyyyyyyyyyy@yyyyyyyyyyyyyy.com.ar)
 def acceso_mail_descarga():
 
-    # 1- Accede al mail y busca todos los mails recibidos de xxxxxx@xxxxxx.com.ar
+    try:
+        host = "imap.gmail.com"
+        usuario = "xxxxxxxxxx@xxxxxxxxxx.com.ar"
+        clave = input("\nIngrese la clave del mail xxxxxxxxxx@xxxxxxxxxx.com.ar.com.ar: ")
+            
+        conexion = Imbox(host, username=usuario, password=clave, ssl=True, ssl_context=None, starttls=False)
+        
+    except Exception as error:
+        error_string = repr(error)
+        if error_string[0:5] == "error":
+            print("\nERROR DE LOGUEO.\nCompruebe la contraseña o bien que esté autorizada a usar este programa.\nPuede que sea necesario generar una clave especial en https://myaccount.google.com/apppasswords\n")
+            os.system('pause')
+            print()
+            exit()
 
-    host = "imap.gmail.com"
-    usuario = "xxxxxx@xxxxxx.com"
-    clave = input("\nIngrese la clave del mail xxxxxx@xxxxxx.com: ")
-    
-    # FALTA QUE DE ERROR SI LA CLAVE ESTÁ MAL
-    conexion = Imbox(host, username=usuario, password=clave, ssl=True, ssl_context=None, starttls=False)
-    
     os.mkdir(nombre_dir_desc)
     os.chdir(dir_base + "\\" + nombre_dir_desc)
     dir_desc = os.getcwd()
 
     print("\nChequeando mails nuevos, descargando los archivos si los hay!\n")
 
-    mails_buscados = conexion.messages(sent_from="xxxxxx@xxxxxx.com.ar", unread=True)
+    mails_buscados = conexion.messages(sent_from="esiga.informa@iosfa.gob.ar", unread=True)
     
     for (uid, message) in mails_buscados:
-            conexion.mark_seen(uid)
-            # marca como vistos
+            conexion.mark_seen(uid) 
+            # marca como vistos los correos encontrados
 
             for idx, adjuntos in enumerate(message.attachments):
                 try:
@@ -42,6 +49,7 @@ def acceso_mail_descarga():
                         fp.write(adjuntos.get("content").read())
                 except:
                     print(traceback.print_exc())
+
     conexion.logout()
 
 
@@ -60,17 +68,14 @@ def analizar_pdfs():
             ext = os.path.splitext(file)[-1].lower()
             if ext in extensions:
                 archivos_analizar.append(file)
-
     print()
     
     # 3- Del 1er PDF extraer el CONCEPTO DEL PAGO: AC Factura Compras Na (ej: 0044-00294094)
     # 4- Del 2do PDF extraer el Nro de Certificado (ej: N° 2021044139) y Monto de la Retención (ej: $ 11.242,63)
-
     if archivos_analizar != []:
 
         print("Archivos encontrados en la carpeta para analizar:")
         print()
-        
         for archivo in archivos_analizar:
             print(archivo)
         print()
@@ -87,7 +92,6 @@ def analizar_pdfs():
         nro_certificado = re.compile(r"\d\d\d\d\d\d\d\d\d\d")
 
         for i in range (len(archivos_analizar)):
-            # print(archivos_analizar[i])
             pdf = open(archivos_analizar[i], "rb")
             reader = PyPDF2.PdfFileReader(pdf)
             pag = reader.getPage(0)
@@ -95,39 +99,23 @@ def analizar_pdfs():
 
             if archivos_analizar[i][0] == "p":
                 dato_concepto_pago = concepto_pago.search(txt)
-                # print("Concepto de pago: " + dato_concepto_pago.group())
                 nros_concepto_pago.append(dato_concepto_pago.group())
 
                 dato_fecha_vto = fecha.search(txt)
-                # print("Fecha de vto: " + dato_fecha_vto.group())
                 fechas_vto.append(dato_fecha_vto.group())
 
-            elif archivos_analizar[i][0] == "r":
+            elif archivos_analizar[i][0] == "r" or "c":
                 dato_nro_certificado = nro_certificado.search(txt)
-                # print("Nro de certificado: " + dato_nro_certificado.group())
                 nros_certificado.append(dato_nro_certificado.group())
 
                 montos = re.findall(r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})", txt)
-                # print("Monto total: " + montos[0])
                 montos_totales.append(montos[0])
-                # print("Monto retenido: " + montos[1])
                 montos_retenidos.append(montos[1])
 
                 dato_fecha_retencion = fecha.search(txt)
-                # print("Fecha de retención: " + dato_fecha_retencion.group())
                 fechas_retenciones.append(dato_fecha_retencion.group())
             
             pdf.close()
-            # print()
-        
-            # Borrar al final
-            # print(nros_concepto_pago)
-            # print(fechas_vto)
-            # print(nros_certificado)
-            # print(montos_totales)
-            # print(montos_retenidos)
-            # print(fechas_retenciones)
-            # print()
 
             # 5- Crear Excel / Word con todos los datos extraídos. 
             # Col 1 = Factura Nro, Col 2 = Fecha de comprobante, Col 3 = Nro Certif, Col 4 = Monto de la Retención, Col 5 = Fecha retención.
@@ -163,7 +151,7 @@ def analizar_pdfs():
 
             excel.save("datos_extraidos_el_"+ texto_fecha + ".xlsx")
     
-        print("TERMINADO! " + str(len(nros_concepto_pago)*2) + " ARCHIVOS BAJADOS Y ANALIZADOS!\n")
+        print("TERMINADO! " + str(len(nros_concepto_pago) + len(nros_certificado)) + " ARCHIVOS BAJADOS Y ANALIZADOS!\n")
         print("SE CREO EL ARCHIVO datos_extraidos_el_"+ texto_fecha + ".xlsx\n")
         
     elif archivos_analizar == []:
@@ -174,6 +162,7 @@ def analizar_pdfs():
         
 
 if __name__ == "__main__":
+    print("¡BIENVENIDA!\nEste programa funciona descargando los mails enviados a xxxxxxxxxx@xxxxxxxxxx.com.ar desde yyyyyyyyyyyyyy@yyyyyyyyyyyyyy.com.ar")
     acceso_mail_descarga()
     analizar_pdfs()
     os.system('pause')
