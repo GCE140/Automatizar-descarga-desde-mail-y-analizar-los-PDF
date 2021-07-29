@@ -34,7 +34,7 @@ def acceso_mail_descarga():
 
     print("\nChequeando mails nuevos, descargando los archivos si los hay!\n")
 
-    mails_buscados = conexion.messages(sent_from="esiga.informa@iosfa.gob.ar", unread=True)
+    mails_buscados = conexion.messages(sent_from="xxxxxxxxxx@xxxxxxxxx.com", unread=True)
     
     for (uid, message) in mails_buscados:
             conexion.mark_seen(uid) 
